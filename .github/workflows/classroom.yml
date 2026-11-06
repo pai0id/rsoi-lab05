@@ -27,12 +27,16 @@ jobs:
       # `docker compose build --push` silently falls back to a local-only
       # image load (no registry push, no error) with the buildx driver this
       # runner ends up with. Push each image explicitly with plain
-      # `docker build`/`docker push` instead.
+      # `docker build`/`docker push` instead. Tag with the commit SHA (in
+      # addition to :latest, kept for anything that still refers to it) so
+      # Helm actually sees a pod spec diff and rolls the deployment itself
+      # instead of needing a forced restart.
       - name: Build and push images
         timeout-minutes: 10
         run: |
           for svc in gateway-service flight-service ticket-service bonus-service; do
-            docker build -t "pai0id/$svc:latest" "./$svc"
+            docker build -t "pai0id/$svc:${{ github.sha }}" -t "pai0id/$svc:latest" "./$svc"
+            docker push "pai0id/$svc:${{ github.sha }}"
             docker push "pai0id/$svc:latest"
           done
 
@@ -50,22 +54,20 @@ jobs:
       - name: Deploy Postgres
         run: kubectl apply -f k8s/postgres/
 
-      # image.tag is the fixed string "latest" in every values file, so a
-      # content-only change on the registry doesn't change the rendered pod
-      # spec and helm upgrade alone won't roll the deployment. Force a
-      # restart every run so imagePullPolicy: Always actually picks up what
-      # was just pushed.
+      # Override image.tag (fixed at "latest" in the values files) with the
+      # commit SHA that was just pushed above, so the rendered Deployment
+      # spec actually changes and helm upgrade rolls it on its own - no
+      # forced restart needed.
       - name: Deploy services
         run: |
           for svc in flight-service ticket-service bonus-service gateway-service; do
-            helm upgrade --install "$svc" ./helm/service-chart -f "helm/values/$svc.yaml"
-            kubectl rollout restart deployment "$svc"
+            helm upgrade --install "$svc" ./helm/service-chart -f "helm/values/$svc.yaml" --set image.tag="${{ github.sha }}"
           done
 
       - name: Wait until services are ready
         run: |
           for svc in flight-service ticket-service bonus-service gateway-service; do
-            kubectl rollout status deployment "$svc" --timeout 3m
+            kubectl rollout status deployment "$svc" --timeout=120s
           done
 
       # The Postman environment in the repo only holds non-secret values
