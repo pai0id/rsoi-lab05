@@ -45,7 +45,17 @@
 								},
 								{
 									"key": "grant_type",
-									"value": "password",
+									"value": "http://auth0.com/oauth/grant-type/password-realm",
+									"type": "text"
+								},
+								{
+									"key": "realm",
+									"value": "Username-Password-Authentication",
+									"type": "text"
+								},
+								{
+									"key": "audience",
+									"value": "{{audience}}",
 									"type": "text"
 								},
 								{
@@ -59,12 +69,12 @@
 									"type": "text"
 								},
 								{
-									"key": "clientId",
+									"key": "client_id",
 									"value": "{{clientId}}",
 									"type": "text"
 								},
 								{
-									"key": "clientSecret",
+									"key": "client_secret",
 									"value": "{{clientSecret}}",
 									"type": "text"
 								}

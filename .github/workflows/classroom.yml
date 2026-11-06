@@ -7,19 +7,86 @@ jobs:
     name: Autograding
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: docker/setup-buildx-action@v2
+      - name: Run unit tests
+        run: |
+          for svc in gateway-service flight-service ticket-service bonus-service; do
+            echo "=== $svc ==="
+            (cd "$svc" && npm ci && npm test)
+          done
 
-      # TODO build, publish to docker hub, deploy to k8s
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # `docker compose build --push` silently falls back to a local-only
+      # image load (no registry push, no error) with the buildx driver this
+      # runner ends up with. Push each image explicitly with plain
+      # `docker build`/`docker push` instead.
+      - name: Build and push images
+        timeout-minutes: 10
+        run: |
+          for svc in gateway-service flight-service ticket-service bonus-service; do
+            docker build -t "pai0id/$svc:latest" "./$svc"
+            docker push "pai0id/$svc:latest"
+          done
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set up helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+
+      - name: Deploy Postgres
+        run: kubectl apply -f k8s/postgres/
+
+      # image.tag is the fixed string "latest" in every values file, so a
+      # content-only change on the registry doesn't change the rendered pod
+      # spec and helm upgrade alone won't roll the deployment. Force a
+      # restart every run so imagePullPolicy: Always actually picks up what
+      # was just pushed.
+      - name: Deploy services
+        run: |
+          for svc in flight-service ticket-service bonus-service gateway-service; do
+            helm upgrade --install "$svc" ./helm/service-chart -f "helm/values/$svc.yaml"
+            kubectl rollout restart deployment "$svc"
+          done
+
+      - name: Wait until services are ready
+        run: |
+          for svc in flight-service ticket-service bonus-service gateway-service; do
+            kubectl rollout status deployment "$svc" --timeout 3m
+          done
+
+      # The Postman environment in the repo only holds non-secret values
+      # (identityProviderUrl, audience, clientId, username, serviceUrl).
+      # clientSecret/password are filled in here from GitHub Actions
+      # Secrets so the Auth0 Application Client Secret and the test user's
+      # password never get committed to this public repository.
+      - name: Inject OAuth2 secrets into Postman environment
+        run: |
+          jq --arg secret "${{ secrets.AUTH0_CLIENT_SECRET }}" \
+             --arg password "${{ secrets.AUTH0_TEST_USER_PASSWORD }}" \
+             '(.values[] | select(.key == "clientSecret") | .value) = $secret
+              | (.values[] | select(.key == "password") | .value) = $password' \
+             v1/postman/environment.json > /tmp/environment.json
+          mv /tmp/environment.json v1/postman/environment.json
 
       - name: Run API Tests
         uses: matt-ball/newman-action@master
         with:
-          collection: <variant>/postman/collection.json
-          environment: <variant>/postman/environment.json
+          collection: v1/postman/collection.json
+          environment: v1/postman/environment.json
           delayRequest: 100
           reporters: '[ "cli" ]'
 

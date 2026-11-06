@@ -1,0 +1,24 @@
+image:
+  repository: pai0id/bonus-service
+  tag: latest
+
+service:
+  port: 8050
+
+env:
+  - name: PORT
+    value: "8050"
+  - name: POSTGRES_HOST
+    value: postgres
+  - name: POSTGRES_PORT
+    value: "5432"
+  - name: POSTGRES_USER
+    value: program
+  - name: POSTGRES_PASSWORD
+    value: test
+  - name: POSTGRES_DB
+    value: privileges
+  - name: AUTH0_DOMAIN
+    value: dev-pejw0hhij25r45wd.us.auth0.com
+  - name: AUTH0_AUDIENCE
+    value: https://rsoi-lab05-api

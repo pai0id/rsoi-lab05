@@ -1,0 +1,24 @@
+image:
+  repository: pai0id/flight-service
+  tag: latest
+
+service:
+  port: 8060
+
+env:
+  - name: PORT
+    value: "8060"
+  - name: POSTGRES_HOST
+    value: postgres
+  - name: POSTGRES_PORT
+    value: "5432"
+  - name: POSTGRES_USER
+    value: program
+  - name: POSTGRES_PASSWORD
+    value: test
+  - name: POSTGRES_DB
+    value: flights
+  - name: AUTH0_DOMAIN
+    value: dev-pejw0hhij25r45wd.us.auth0.com
+  - name: AUTH0_AUDIENCE
+    value: https://rsoi-lab05-api

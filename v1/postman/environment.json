@@ -4,17 +4,22 @@
 	"values": [
 		{
 			"key": "serviceUrl",
-			"value": "",
+			"value": "http://77.105.147.81",
 			"enabled": true
 		},
 		{
 			"key": "identityProviderUrl",
-			"value": "",
+			"value": "https://dev-pejw0hhij25r45wd.us.auth0.com",
+			"enabled": true
+		},
+		{
+			"key": "audience",
+			"value": "https://rsoi-lab05-api",
 			"enabled": true
 		},
 		{
 			"key": "username",
-			"value": "",
+			"value": "lab5-test-user@rsoi-lab05.test",
 			"enabled": true
 		},
 		{
@@ -24,7 +29,7 @@
 		},
 		{
 			"key": "clientId",
-			"value": "",
+			"value": "RmkkGvTPqScQCgHe8qk1OrWBl5WGqx9p",
 			"enabled": true
 		},
 		{
